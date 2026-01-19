@@ -1,0 +1,20 @@
+# Airflow DB
+psycopg2-binary
+
+# Spark
+pyspark
+
+pandas
+seaborn
+matplotlib
+numpy
+scikit-learn
+fastapi 
+sqlalchemy 
+uvicorn
+pydantic
+joblib
+python-dotenv 
+pytest
+python_jose
+passlib[argon2]
