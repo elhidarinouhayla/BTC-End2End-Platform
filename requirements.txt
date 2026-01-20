@@ -18,3 +18,5 @@ python-dotenv
 pytest
 python_jose
 passlib[argon2]
+requests
+pyarrow
