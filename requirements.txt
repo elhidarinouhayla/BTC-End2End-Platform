@@ -3,7 +3,7 @@ psycopg2-binary
 
 # Spark
 pyspark
-
+ipykernel
 pandas
 seaborn
 matplotlib
