@@ -2,9 +2,9 @@ version: '3.8'
 
 services:
   #  Base de donnees pour Airflow 
-  postgres-airflow:
+  airflow-postgres:
     image: postgres:16
-    container_name: postgres-airflow
+    container_name: airflow-postgres
     environment:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
@@ -15,12 +15,12 @@ services:
       timeout: 5s
       retries: 5
     volumes:
-      - postgres-airflow-data:/var/lib/postgresql/data
+      - airflow-postgres-data:/var/lib/postgresql/data
 
   #  Base de donnees Silver 
-  postgres-silver:
+  silver-postgres:
     image: postgres:15
-    container_name: postgres-silver
+    container_name: silver-postgres
     environment:
       POSTGRES_USER: silver_user
       POSTGRES_PASSWORD: silver_pass123
@@ -37,18 +37,18 @@ services:
       - "-c"
       - "work_mem=32MB"
     volumes:
-      - postgres-silver-data:/var/lib/postgresql/data
+      - silver-postgres-data:/var/lib/postgresql/data
 
   # Airflow Initialisation 
   airflow-init:
     build: .
-    container_name: airflow-init
+    # container_name: airflow-init
     depends_on:
-      postgres-airflow:
+      airflow-postgres:
         condition: service_healthy
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres-airflow/airflow
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
     volumes:
       - ./init_airflow.sh:/init_airflow.sh
     entrypoint: ["/bin/bash", "/init_airflow.sh"]
@@ -60,7 +60,7 @@ services:
     restart: always
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres-airflow/airflow
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
@@ -76,12 +76,12 @@ services:
     depends_on:
       airflow-init:
         condition: service_completed_successfully
-      postgres-airflow:
+      airflow-postgres:
         condition: service_healthy
     ports:
       - "8080:8080"
 
 volumes:
-  postgres-airflow-data:
-  postgres-silver-data:
+  airflow-postgres-data:
+  silver-postgres-data:
     driver: local
