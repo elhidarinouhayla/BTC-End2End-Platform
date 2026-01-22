@@ -14,8 +14,7 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     
-
-    
+    predictions = relationship("Prediction", back_populates="user")
     
    
     
