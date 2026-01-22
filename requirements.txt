@@ -21,3 +21,6 @@ passlib[argon2]
 requests
 apache-airflow
 pyarrow
+pyarrow
+pydantic[email]
+pwdlib
