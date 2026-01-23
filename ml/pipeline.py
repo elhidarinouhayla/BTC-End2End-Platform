@@ -37,12 +37,19 @@ def assemble_features(df, numeric_cols):
 def split_data(df_ml, train_ratio=0.8):
     total = df_ml.count()
     train_limit = int(total * train_ratio)
-    
-    train_data = df_ml.limit(train_limit)
-    test_data = df_ml.tail(total - train_limit)  # keeps order
-    test_data = spark.createDataFrame(test_data, df_ml.schema)
-    
+
+    # enforce time order
+    window = Window.orderBy("open_time")
+    df_ml = df_ml.withColumn("rn", F.row_number().over(window))
+
+    train_data = df_ml.filter(F.col("rn") <= train_limit) \
+                      .drop("rn", "open_time")
+
+    test_data = df_ml.filter(F.col("rn") > train_limit) \
+                     .drop("rn", "open_time")
+
     return train_data, test_data
+
 
 
 #training
