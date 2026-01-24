@@ -19,31 +19,11 @@ def load_data(spark, path):
 
 # Adding features
 def add_features(df):
-   
-    window_spec = Window.orderBy("open_time")
-
-    # NOTE: target already exists in silver -> DO NOT recreate it
-
-    # 1-minute return
-    df = df.withColumn(
-        "return_1m",
-        (F.col("close") - F.lag("close",1).over(window_spec)) /
-        F.lag("close",1).over(window_spec)
-    )
-
-    # Moving avrg
-    df = df.withColumn("MA_5", F.avg("close").over(window_spec.rowsBetween(-4,0)))
-    df = df.withColumn("MA_10", F.avg("close").over(window_spec.rowsBetween(-9,0)))
-
-    # taker ratio
-    df = df.withColumn("taker_ratio", F.col("taker_buy_base_volume") / F.col("volume"))
-
     #keeping only num features 
     numeric_cols = [
         c for c, t in df.dtypes
         if t in ["int", "bigint", "double", "float"] and c != "close_t_plus_10"
     ]
-    df = df.na.drop(subset=numeric_cols + ["close_t_plus_10"])
     return df, numeric_cols
 
 #asemble features into ML vector
@@ -53,24 +33,24 @@ def assemble_features(df, numeric_cols):
     df_ml = assembler.transform(df).select("open_time", "features", "close_t_plus_10")
     return df_ml
 
-#spliting data (TIME SERIES SAFE)
+#spliting data
 def split_data(df_ml, train_ratio=0.8):
     total = df_ml.count()
     train_limit = int(total * train_ratio)
 
+    # enforce time order
     window = Window.orderBy("open_time")
     df_ml = df_ml.withColumn("rn", F.row_number().over(window))
 
-    train_data = (
-        df_ml.filter(F.col("rn") <= train_limit)
-             .drop("rn", "open_time")
-    )
-    test_data = (
-        df_ml.filter(F.col("rn") > train_limit)
-             .drop("rn", "open_time")
-    )
+    train_data = df_ml.filter(F.col("rn") <= train_limit) \
+                      .drop("rn", "open_time")
+
+    test_data = df_ml.filter(F.col("rn") > train_limit) \
+                     .drop("rn", "open_time")
 
     return train_data, test_data
+
+
 
 #training
 def train_model(train_data):
