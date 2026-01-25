@@ -1,0 +1,35 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies including Java for PySpark
+RUN apt-get update && apt-get install -y \
+    gcc \
+    postgresql-client \
+    default-jdk \
+    wget \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Java environment
+ENV JAVA_HOME=/usr/lib/jvm/default-java
+ENV PATH=$JAVA_HOME/bin:$PATH
+
+# Download PostgreSQL JDBC driver for PySpark
+RUN mkdir -p /opt/spark/jars && \
+    wget https://jdbc.postgresql.org/download/postgresql-42.7.1.jar -O /opt/spark/jars/postgresql-42.7.1.jar
+
+ENV PYSPARK_SUBMIT_ARGS="--jars /opt/spark/jars/postgresql-42.7.1.jar pyspark-shell"
+
+# Install FastAPI dependencies
+COPY requirements-fastapi.txt .
+RUN pip install --no-cache-dir --timeout=1000 -r requirements-fastapi.txt
+
+# Copy application code
+COPY ./app /app/app
+
+# Expose port
+EXPOSE 8000
+
+# Run uvicorn
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
