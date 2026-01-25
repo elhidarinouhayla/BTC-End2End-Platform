@@ -8,8 +8,8 @@ from fastapi import Depends , HTTPException , status
 from app.api.v1.dependencies import get_db
 load_dotenv()
 
-SECRET_KEY = os.getenv('SECRET_KEY')
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('ACCESS_TOKEN_EXPIRE_MINUTES',30))
+JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
+JWT_EXPIRATION_MINUTES = int(os.getenv('JWT_EXPIRATION_MINUTES',30))
 
 bearer_scheme = HTTPBearer()
 
@@ -19,14 +19,14 @@ bearer_scheme = HTTPBearer()
 def create_token(payload):
     
     to_encode = payload.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.utcnow() + timedelta(minutes=JWT_EXPIRATION_MINUTES)
     
     to_encode.update({
         "exp":expire,
         "iat":datetime.utcnow()
     })
     
-    token = jwt.encode(to_encode , SECRET_KEY)
+    token = jwt.encode(to_encode , JWT_SECRET_KEY)
     return token
 
 
@@ -34,7 +34,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_sche
     token = credentials.credentials
     
     try:
-        payload = jwt.decode(token , SECRET_KEY )
+        payload = jwt.decode(token , JWT_SECRET_KEY )
         return payload
     except JWTError:
         raise HTTPException(
