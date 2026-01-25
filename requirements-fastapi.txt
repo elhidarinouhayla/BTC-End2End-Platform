@@ -1,0 +1,32 @@
+# FastAPI Core
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Database
+sqlalchemy
+psycopg2-binary
+
+# Auth & Security
+python-jose[cryptography]
+passlib[argon2]
+pwdlib
+pydantic[email]
+email-validator
+
+# Utils
+python-dotenv
+requests
+pydantic
+pydantic-settings
+
+# Spark & Data Processing
+pyspark
+pandas
+numpy
+scikit-learn
+joblib
+pyarrow
+
+# Testing
+pytest
