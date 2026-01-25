@@ -19,10 +19,6 @@ def start_spark(app_name="BTC_Prediction"):
     spark.sparkContext.setLogLevel("ERROR")
     return spark
 
-# load 
-def load_data(spark, path):
-    df = spark.read.parquet(path)
-    return df
 
 # new features
 def add_features(df):
