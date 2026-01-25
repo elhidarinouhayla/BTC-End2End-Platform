@@ -5,13 +5,13 @@ import os
 
 load_dotenv()
 
-DATABASE = os.getenv("DATABASE")
-DB_USER=os.getenv("DB_USER")
-PASSWORD=os.getenv("PASSWORD")
-PORT=os.getenv("PORT")
-HOST=os.getenv("HOST")
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
 
-DATABASE_URI = f'postgresql+psycopg2://{DB_USER}:{PASSWORD}@{HOST}:{PORT}/{DATABASE}'
+DATABASE_URI = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-engine = create_engine(DATABASE_URI)
-sessionLocal = sessionmaker(bind=engine)
+engine = create_engine(DATABASE_URI, pool_pre_ping=True)
+sessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
