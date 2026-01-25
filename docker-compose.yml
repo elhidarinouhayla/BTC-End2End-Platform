@@ -1,7 +1,9 @@
 version: '3.8'
 
 services:
-  #  Base de donnees pour Airflow 
+  # ================================================
+  # Base de données Airflow (métadonnées uniquement)
+  # ================================================
   airflow-postgres:
     image: postgres:16
     container_name: airflow-postgres
@@ -9,24 +11,29 @@ services:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
-    healthcheck:
+    healthcheck: # vérifie que Postgres est prêt avant de lancer Airflow.
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 5s
       timeout: 5s
       retries: 5
     volumes:
       - airflow-postgres-data:/var/lib/postgresql/data
+    networks:
+      - quant-ai-network
 
-  #  Base de donnees Silver 
-  silver-postgres:
+  # ================================================
+  # Base de données principale (TOUT sauf Airflow)
+  # Bronze, Silver, Predictions, Users, Analytics
+  # ================================================
+  quant-postgres:
     image: postgres:15
-    container_name: silver-postgres
+    container_name: quant-postgres
     environment:
-      POSTGRES_USER: silver_user
-      POSTGRES_PASSWORD: silver_pass123
-      POSTGRES_DB: silver_data
+      POSTGRES_USER: quant_user
+      POSTGRES_PASSWORD: quant_pass_2024
+      POSTGRES_DB: quant_ai
     ports:
-      - "5432:5432" 
+      - "5432:5432"
     restart: unless-stopped
     command: 
       - "postgres"
@@ -37,23 +44,42 @@ services:
       - "-c"
       - "work_mem=32MB"
     volumes:
-      - silver-postgres-data:/var/lib/postgresql/data
+      - quant-postgres-data:/var/lib/postgresql/data
+      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "quant_user", "-d", "quant_ai"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - quant-ai-network
 
-  # Airflow Initialisation 
+  # ================================================
+  # Airflow Initialisation
+  # ================================================
   airflow-init:
-    build: .
-    # container_name: airflow-init
+    build: . # Build à partir du Dockerfile.
     depends_on:
       airflow-postgres:
         condition: service_healthy
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
+      # Connexion à la base de données principale
+      QUANT_DB_HOST: quant-postgres
+      QUANT_DB_PORT: 5432
+      QUANT_DB_NAME: quant_ai
+      QUANT_DB_USER: quant_user
+      QUANT_DB_PASSWORD: quant_pass_2024
     volumes:
       - ./init_airflow.sh:/init_airflow.sh
     entrypoint: ["/bin/bash", "/init_airflow.sh"]
+    networks:
+      - quant-ai-network
 
-  # Airflow Principal
+  # ================================================
+  # Airflow Scheduler + Webserver
+  # ================================================
   airflow:
     build: .
     container_name: airflow
@@ -61,12 +87,19 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
+      # Connexion à la base de données principale
+      QUANT_DB_HOST: quant-postgres
+      QUANT_DB_PORT: 5432
+      QUANT_DB_NAME: quant_ai
+      QUANT_DB_USER: quant_user
+      QUANT_DB_PASSWORD: quant_pass_2024
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
-      - ./requirements.txt:/requirements.txt  
-      - ./ml/data:/opt/airflow/ml/data  # 
+      - ./requirements.txt:/requirements.txt
+      - ./ml:/opt/airflow/ml  # Pour les modèles ML
+      - ./app:/opt/airflow/app  # Pour accéder aux services
     command: >
       bash -c "
         pip install --no-cache-dir -r /requirements.txt &&
@@ -78,10 +111,41 @@ services:
         condition: service_completed_successfully
       airflow-postgres:
         condition: service_healthy
+      quant-postgres:
+        condition: service_healthy
     ports:
       - "8080:8080"
+    networks:
+      - quant-ai-network
+
+  # ================================================
+  # FastAPI Backend
+  # ================================================
+  fastapi:
+    build:
+      context: .
+      dockerfile: Dockerfile.fastapi
+    container_name: fastapi-backend
+    restart: always
+    env_file:
+      - .env  # ← Charger le fichier .env
+    volumes:
+      - ./app:/app/app
+      - ./ml:/app/ml
+    depends_on:
+      quant-postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    networks:
+      - quant-ai-network
 
 volumes:
   airflow-postgres-data:
-  silver-postgres-data:
     driver: local
+  quant-postgres-data:
+    driver: local
+
+networks:
+  quant-ai-network:
+    driver: bridge
